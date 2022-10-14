@@ -81,7 +81,7 @@ int main()
                                 break;
                             }
                         }
-                        int count = searchbyuser(BRFILE, myuser.id, temp);   // 调用functios.h里的函数
+                        int count = searchbyuser(BRFILE, thisuser.id, temp);   // 调用functios.h里的函数
                         if (count == 0) {   // 未查询到
                             response = -1;
                             write(c_fd, &temp, sizeof(temp));
@@ -187,8 +187,16 @@ int main()
                             response = 1;
                             write(c_fd, actlist, sizeof(actlist));
                             write(c_fd, &response, sizeof(response));
-                            write(c_fd, &id, sizeof(id));
-                            write(c_fd, &idea, sizeof(idea));
+                            while(1) {
+                                if(read(c_fd, &id, sizeof(id)) > 0) {
+                                    break;
+                                }
+                            }
+                            while(1) {
+                                if(read(c_fd, &idea, sizeof(idea)) > 0) {
+                                    break;
+                                }
+                            }
                             actauditing2(BRFILE, id, idea);
                         }
                         break;

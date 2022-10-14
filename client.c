@@ -7,11 +7,11 @@
 #include "functionsv4.h"
 #define PORT 5566
 
-int mysend_recv(int sockfd, int type, void *msg);
+
 void initPage();
 void mainPage(int sockfd, user myuser);
-user sign_up();
-sign_msg* sign_in();
+user sign_up(user theuser);
+sign_msg sign_in();
 void search_activity(int sockfd, user myuser, int type);
 void engine_activity(int sockfd, user myuser);
 void delete_activity(int sockfd, user myuser);
@@ -56,7 +56,7 @@ int main() {
 
    // 用户登陆界面
    while(1) {
-      sign_msg *msg_log;
+      sign_msg msg_log;
       user my_user;   // 初始化用户权限
       int start_type = 0;
       printf("(1) Press 1 to Sign in.    (2)Press 2 to Sign up    (3)Press 0 to Quit\n");
@@ -99,8 +99,7 @@ int main() {
          int type = 0;
          int response;
          user theuser;
-         initUser(theuser);
-         theuser = sign_up();
+         theuser = sign_up(theuser);
          write(sockfd, &type, sizeof(type));   
          write(sockfd, &theuser, sizeof(theuser));   // 向服务器发出0号请求（注册），并接收服务器的响应值
          while(1) {
@@ -125,23 +124,6 @@ int main() {
    return 0;
 }
 
-int mysend_recv(int sockfd, int type, void *msg) {
-   int typet[1] = {0};
-   int response[1] = {0};
-   typet[0] = type;   // 初始化消息类型type
-   
-   write(newsockfd, typet, sizeof(typet));
-   write(newsockfd, msg, sizeof(msg));
-
-   while (1)
-   {
-      if (read(newsockfd, response, sizeof(response)) > 0) {   // 等待响应
-         break;
-      }
-   }
-   return response[0];   // 返回服务器相应结果
-}
-
 void initPage() {
    printf("Fzu Volunteer Online Platform\n");
    printf("Guide\n");
@@ -155,7 +137,7 @@ void mainPage(int sockfd, user myuser) {
    int run_flag = 1;
    while(run_flag) {
       printf("Main Page.\n\n");
-      printf("Welcome, user: %s\n", user.name);
+      printf("Welcome, user: %s\n", myuser.name);
       printf("Functions: \n");
       printf("     (1)Search Volunteer Activity nearby\n");   // 操作一：查找志愿活动
       printf("     (2)Engine a Volunteer Activity\n");   // 操作二：发起一个志愿活动   （略微区别管理员和普通用户（auditing码不同））
@@ -165,11 +147,11 @@ void mainPage(int sockfd, user myuser) {
       // 以下为管理员特有的操作
       if (myuser.status >= 1) {
          printf("     (5)Delete Account\n");   // 操作五：删除账号 （区别管理员和普通用户（删自己或删他人））
-         printf("     (6)Check user\n")   // 操作六：查看指定用户的信息
-         printf("     (7)Activity Audit\n")   // 操作七：审核活动
-         
+         printf("     (6)Check user\n");       // 操作六：查看指定用户的信息
+         printf("     (7)Activity Audit\n");   // 操作七：审核活动
+
          if (myuser.status == 2) {   // 根用户能执行的操作
-            printf("     (8)Update Permission\n")   // 操作八：权限更新
+            printf("     (8)Update Permission\n"); // 操作八：权限更新
          }
       }
       printf("(*)Log out\n");
@@ -178,7 +160,7 @@ void mainPage(int sockfd, user myuser) {
       printf("\n");
       printf("Please choose your operation(the index number): \n");
 
-      char = getchar();
+      char ch= getchar();
       switch(choice) {
          case '1': {
             int type;
@@ -206,7 +188,7 @@ void mainPage(int sockfd, user myuser) {
                printf("ILLEGAL opeartion. Please try again\n"); // 用户执行非授权操作，为非法操作
             }
             else {
-               delete_account(sockfd, myuser);   // 删除账号
+               delete_user(sockfd, myuser);   // 删除账号
             }
             break;
          }
@@ -250,14 +232,14 @@ void mainPage(int sockfd, user myuser) {
    }
 }
 
-sign_msg* sign_in() {   //登陆交互界面，待完善。
+sign_msg sign_in() {   //登陆交互界面，待完善。
    int account;
    char passwd[10] = "0";
    char ch;
    printf("Please type your account: ");
    scanf("%d", &account);
    printf("Please type your password: ");
-   scanf("%s", &passwd);
+   scanf("%s", passwd);
    ch = getchar();
 
    sign_msg login;
@@ -265,26 +247,28 @@ sign_msg* sign_in() {   //登陆交互界面，待完善。
    login.account = account;
    strcpy(login.passwd, passwd);
 
-   return &login;
+   return login;
 }
 
 user sign_up(user theuser) {   //登陆交互界面，待完善。
-   initUser(theuser);
+   initUser(&theuser);
    while(1) {
+      char ch;
+      char temp[20] = "";
       printf("Please type your phone number: ");
-      scanf("%s", &theuser.phone);
+      scanf("%s", theuser.phone);
       ch = getchar();
       printf("Please type your name/account that would be used for login: ");
-      scanf("%d", &theuser.name);
+      scanf("%s", theuser.name);
       printf("Please type your id that would be used for login: ");
       scanf("%d", &theuser.id);
       printf("Please type your password: ");
-      scanf("%s", &temp);
+      scanf("%s", temp);
       ch = getchar();
       printf("Please type your password again: ");
-      scanf("%s", &theuser.passwd);
+      scanf("%s", theuser.password);
       ch = getchar();
-      if (strcmp(passwd, temp)  != 0) {
+      if (strcmp(theuser.password, temp)  != 0) {
          printf("Two inputs of password doesn't fit. Please try again\n\n");
          continue;
       }
@@ -302,7 +286,7 @@ void search_activity(int sockfd, user myuser, int type){
       write(sockfd, &myuser, sizeof(myuser));
       while (1)
       {
-         if (read(sockfd, &tmp, sizeof(tmp)) > 0) {   // 等待响应
+         if (read(sockfd, tmp, sizeof(tmp)) > 0) {   // 等待响应
             break;
          }
       }
@@ -323,12 +307,12 @@ void search_activity(int sockfd, user myuser, int type){
             printf("活动开始时间:%ld\n",tmp[i].btime);
             printf("活动结束时间:%ld\n",tmp[i].etime);
             printf("活动备注：%s\n",tmp[i].comment);
-            if(tmp.auditing==0)
+            if(tmp[i].auditing==0)
                {printf("活动审核情况:审核中\n");}
-            if(tmp.auditing==1) {
+            if(tmp[i].auditing==1) {
                printf("活动审核情况:审核通过\n");
             }
-            if(tmp.auditing==-1) {
+            if(tmp[i].auditing==-1) {
                printf("活动审核情况:驳回\n");
             }
             printf("审核人id:%d\n",tmp[i].auditior);
@@ -357,14 +341,14 @@ void search_activity(int sockfd, user myuser, int type){
       write(sockfd, &s_msg, sizeof(s_msg));
       while (1)
       {
-         if (read(sockfd, &tmp2, sizeof(tmp2)) > 0) {   // 等待响应
+         if (read(sockfd, tmp2, sizeof(tmp2)) > 0) {   // 等待响应
             break;
          }
       } 
       // bill_query(AFILE, btime, etime);
       while (1)
       {
-         if (read(sockfd, response, sizeof(response)) > 0) {   // 等待响应
+         if (read(sockfd, &response, sizeof(response)) > 0) {   // 等待响应
             break;
          }
       }
@@ -390,22 +374,10 @@ void search_activity(int sockfd, user myuser, int type){
    }
 }
 
-void initAct(act* myact) {
-   myact->name[20] = "0";//活动名称
-   myact->location[20] = "0";//活动地点
-   myact->btime = 0;//开始开始时间，格式年月日小时分钟，例如：2022(年份)09（月份）05（日期）09(小时)30（分钟）其中前导0不可省略
-   myact->etime = 0;//活动结束时间，格式如上
-   myact->applicant = 0;//申请用户id
-   myact->checkin = 0;//签到码
-   myact->id = 0;//活动id，用于唯一标识一个活动(直接为出现的次序，例如第一个活动序号为1)
-   myact->comment[50] = "0";//备注
-   myact->auditing = -2;//活动审核情况，0为等待审核，1为审核通过，-1为被驳回
-   myact->auditior = 0;//审核用户id
-}
 
 void engine_activity(int sockfd, user myuser) {
    char ch;
-   act *myact;
+   act myact;
    int response = 0;
    int type = 4;
    initAct(myact);
@@ -413,30 +385,30 @@ void engine_activity(int sockfd, user myuser) {
    // 键入活动信息
    printf("\n");
    printf("Activity name: ");
-   scanf("&s", myact->name);
+   scanf("%s", myact.name);
    ch = getchar();
    printf("Location: ");
-   scanf("&s", myact->location);
+   scanf("%s", myact.location);
    ch = getchar();
    printf("Begin time: ");
-   scanf("&ld", myact->btime);
+   scanf("%ld", &myact.btime);
    printf("End time: ");
-   scanf("&ld", myact->etime);
+   scanf("%ld", &myact.etime);
 
 
-   write(sockfd, &type, sizeof(type));   // 向服务器发送3号请求（查询指定时间段的活动），msg = act结构体
-   write(sockfd, &s_msg, sizeof(s_msg));
+   write(sockfd, &type, sizeof(type));   // 向服务器发送4号请求（查询指定时间段的活动），msg = act结构体
+   write(sockfd, &myact, sizeof(myact));
    while (1)
    {
-      if (read(sockfd, response, sizeof(response)) > 0) {   // 等待响应
+      if (read(sockfd, &response, sizeof(response)) > 0) {   // 等待响应
          break;
       }
    }
 
-   if (result == 1) {
+   if (response == 1) {
       printf("Successfully engined. Please wait administrators to audit...\n");
    }
-   else if (result == 0) {
+   else if (response == 0) {
       printf("System error. Please try again.\n");
    }
    else {
@@ -455,10 +427,10 @@ void delete_activity(int sockfd, user myuser) {
    scanf("%d", &actid);
    
    write(sockfd, &type, sizeof(type));   // 向服务器发送5号请求（删除活动），msg = 整数
-   write(sockfd, &s_msg, sizeof(s_msg));
+   write(sockfd, &actid, sizeof(actid));
    while (1)
    {
-      if (read(sockfd, response, sizeof(response)) > 0) {   // 等待响应
+      if (read(sockfd, &response, sizeof(response)) > 0) {   // 等待响应
          break;
       }
    }
@@ -477,9 +449,9 @@ void delete_activity(int sockfd, user myuser) {
 void check_profile(user myuser) {
    printf("\n");
    printf("  Name: %s\n", myuser.name);
-   printf("  ID: %s\n", myuser.id);
+   printf("  ID: %d\n", myuser.id);
    printf("  Phone: %s\n", myuser.phone);
-   printf("  Role: ")
+   printf("  Role: ");
    if (myuser.status == 0) {
       printf("User\n");
    }
@@ -504,14 +476,16 @@ void delete_user(int sockfd, user myuser) {
    write(sockfd, &deleteid, sizeof(deleteid));
    while (1)
    {
-      if (read(sockfd, response, sizeof(response)) > 0) {   // 等待响应
+      if (read(sockfd, &response, sizeof(response)) > 0) {   // 等待响应
          break;
       }
    }
-   response = mysend_recv(sockfd, 6, &deleteid);   
    // result = deleteuser(deleteid, myuser.status);
    
-   if (result == -2 or result == -3) {
+   if (response == 1) {
+      printf("Successfully delete\n");
+   }
+   else if (response == -2 || response == -3) {
       printf("Failed to delete. (Admin account)\n");
    }
 }
@@ -530,7 +504,7 @@ void check_user(int sockfd, user myuser) {
    write(sockfd, &checkid, sizeof(checkid));
    while (1)
    {
-      if (read(sockfd, checkuser, sizeof(checkuser)) > 0) {   // 等待响应
+      if (read(sockfd, &checkuser, sizeof(checkuser)) > 0) {   // 等待响应
          break;
       }
    }  
@@ -590,20 +564,6 @@ void audit_activity(int sockfd, user myuser) {
       write(sockfd, &choice, sizeof(choice));
       write(sockfd, &idea, sizeof(idea));
    }
-
-   int choice = 0;
-   int idea;
-   int audit;
-   int *audit_id;
-
-   printf("Choose the activity you want to audit: \n");
-   scanf("%d", &choice);
-   audit = audit_id[choice - 1];
-   searchbyactid();
-
-   printf("Audit idea(1 is accept, -1 is reject): ");
-   scanf("%d", &idea);
-   actauditing(AFILE, myuser.id, audit, idea);
 }
 
 void update_permission(int sockfd, user myuser) {
