@@ -5,7 +5,7 @@
 #include <arpa/inet.h>							// 包含AF_INET相关操作的函数
 #include <unistd.h>
 #include <pthread.h>
-#include "functions.h"
+#include "functionsv4.h"
 #define PORT 3339
 int main()
 {
@@ -48,14 +48,14 @@ int main()
             if(read(c_fd, &type, sizeof(type)) > 0) {   // 接收请求类型
                 switch (type) {
                     case 0: {   // 注册
-                        sign_msg msg_log;
+                        user msg_log;
                         int response;
                         while(1) {
                             if(read(c_fd, &msg_log, sizeof(msg_log)) > 0) {
                                 break;
                             }
                         }
-                        response = adduser();   // 调用functios.h里的函数
+                        response = adduser_login(msg_log);   // 调用functios.h里的函数
                         write(c_fd, &response, sizeof(response));
                         break;
                     }
@@ -67,7 +67,7 @@ int main()
                                 break;
                             }
                         }
-                        response = login_decision(&thisuser, );   // 调用functios.h里的函数
+                        response = decision(ARFILE, msg_log, &thisuser);   // 调用functios.h里的函数
                         write(c_fd, &thisuser, sizeof(thisuser));
                         write(c_fd, &response, sizeof(response));
                         break;
@@ -81,7 +81,7 @@ int main()
                                 break;
                             }
                         }
-                        int count = searchbyuser(AFILE, myuser.id, temp);   // 调用functios.h里的函数
+                        int count = searchbyuser(BRFILE, myuser.id, temp);   // 调用functios.h里的函数
                         if (count == 0) {   // 未查询到
                             response = -1;
                             write(c_fd, &temp, sizeof(temp));
@@ -105,7 +105,7 @@ int main()
                                 break;
                             }
                         }
-                        int count = bill_query(AFILE, s_msg.btime, s_msg.etime, temp);   // 调用functios.h里的函数
+                        int count = bill_query(BRFILE, s_msg.btime, s_msg.etime, temp);   // 调用functios.h里的函数
                         if (count == 0) {
                             response = -1;
                             write(c_fd, &temp, sizeof(temp));
@@ -126,7 +126,7 @@ int main()
                                 break;
                             }
                         }
-                        response = bill_insert(AFILE, &temp, thisuser.status);   // 调用functios.h里的函数
+                        response = bill_insert(BRFILE, &temp, thisuser);   // 调用functios.h里的函数
                         write(c_fd, &response, sizeof(response));
                         break;
                     }
@@ -138,7 +138,7 @@ int main()
                                 break;
                             }
                         }
-                        response = bill_remove(AFILE, actid, thisuser.status, thisuser.id);   // 调用functios.h里的函数
+                        response = bill_remove(BRFILE, actid, thisuser.status, thisuser.id);   // 调用functios.h里的函数
                         write(c_fd, &response, sizeof(response));
                         break;
                     }
@@ -175,7 +175,7 @@ int main()
                         int response;
                         int count = 0;
                         act actlist[20];
-                        count = actauditing1(AFILE, actlist);
+                        count = actauditing1(BRFILE, actlist);
                         if (count == 0) {
                             response = -1;
                             write(c_fd, actlist, sizeof(actlist));
@@ -189,7 +189,7 @@ int main()
                             write(c_fd, &response, sizeof(response));
                             write(c_fd, &id, sizeof(id));
                             write(c_fd, &idea, sizeof(idea));
-                            actauditing1(AFILE, id, idea);
+                            actauditing2(BRFILE, id, idea);
                         }
                         break;
                     }

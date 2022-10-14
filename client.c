@@ -1,26 +1,25 @@
-﻿#include <sys/types.h>
+#include <sys/types.h>
 #include <sys/socket.h>	 // 包含套接字函数库
 #include <stdio.h>
 #include <netinet/in.h>	 // 包含AF_INET相关结构
 #include <arpa/inet.h>	 // 包含AF_INET相关操作的函数
 #include <unistd.h>
-#include "functions.h"
+#include "functionsv4.h"
 #define PORT 5566
 
 int mysend_recv(int sockfd, int type, void *msg);
-void mylen(void *myarr);
 void initPage();
-void mainPage(user myuser);
-void sign_up();
-void sign_in();
-void search_activity(user myuser);
-void engine_activity(user myuser);
-void delete_activity(user myuser);
+void mainPage(int sockfd, user myuser);
+user sign_up();
+sign_msg* sign_in();
+void search_activity(int sockfd, user myuser, int type);
+void engine_activity(int sockfd, user myuser);
+void delete_activity(int sockfd, user myuser);
 void check_profile(user myuser);
-void delete_user(user myuser);
-void check_user(user myuser);
-void audit_activity(user myuser);
-void update_permission(user myuser);
+void delete_user(int sockfd, user myuser);
+void check_user(int sockfd, user myuser);
+void audit_activity(int sockfd, user myuser);
+void update_permission(int sockfd, user myuser);
 
 int main() {
    // 定义网络通信变量
@@ -57,7 +56,7 @@ int main() {
 
    // 用户登陆界面
    while(1) {
-      sign_msg *msg_log = NULL;
+      sign_msg *msg_log;
       user my_user;   // 初始化用户权限
       int start_type = 0;
       printf("(1) Press 1 to Sign in.    (2)Press 2 to Sign up    (3)Press 0 to Quit\n");
@@ -91,19 +90,28 @@ int main() {
                continue;
             }
             else {   // 返回值为1，说明账号密码均正确，将读取自身的用户结构，同时进入下一界面
-               mainPage(my_user);   // mainPage内部实现了循环，这里只嵌套了两层
+               mainPage(sockfd, my_user);   // mainPage内部实现了循环，这里只嵌套了两层
                break;
             }
          }
       }
       else if (start_type == 2){   // 进入注册界面
-         msg_log = sign_up();
-         response = mysend_recv(sockfd, 0, msg_log);   // 向服务器发出0号请求（注册），并接收服务器的响应值
-         if (response == -1) {
+         int type = 0;
+         int response;
+         user theuser;
+         initUser(theuser);
+         theuser = sign_up();
+         write(sockfd, &type, sizeof(type));   
+         write(sockfd, &theuser, sizeof(theuser));   // 向服务器发出0号请求（注册），并接收服务器的响应值
+         while(1) {
+               if(read(sockfd, &response, sizeof(response)) > 0) {
+                  break;
+               }
+         }
+         if (response == 0) {
             printf("Duplication of name. Please change another account. Please Try again\n\n");
          }
          else {
-            recv(sockfd, &my_user, sizeof(my_user), 0);   // 若注册成功，服务器会额外返回一个user结构体，用于后续函数的调用
             printf("Successfully signed up. Now Login to your account......\n");
             sleep(0.5);
          }
@@ -139,7 +147,7 @@ void initPage() {
    printf("Guide\n");
 }
 
-void mainPage(user myuser) {
+void mainPage(int sockfd, user myuser) {
    system("clear");   // 清空屏幕
 
    char choice;   // 初始化用户操作选择
@@ -182,11 +190,11 @@ void mainPage(user myuser) {
             break;
          }
          case '2': {
-            engine_activity(myuser);   // 调用活动发起函数
+            engine_activity(sockfd, myuser);   // 调用活动发起函数
             break;
          }
          case '3': {
-            delete_activity(myuser);   // 调用活动删除函数
+            delete_activity(sockfd, myuser);   // 调用活动删除函数
             break;
          }
          case '4': {
@@ -198,7 +206,7 @@ void mainPage(user myuser) {
                printf("ILLEGAL opeartion. Please try again\n"); // 用户执行非授权操作，为非法操作
             }
             else {
-               delete_account(myuser);   // 删除账号
+               delete_account(sockfd, myuser);   // 删除账号
             }
             break;
          }
@@ -207,7 +215,7 @@ void mainPage(user myuser) {
                printf("ILLEGAL opeartion. Please try again\n"); // 用户执行非授权操作，为非法操作
             }
             else {
-               check_user();
+               check_user(sockfd, myuser);
             }
             break;
          }
@@ -216,7 +224,7 @@ void mainPage(user myuser) {
                printf("ILLEGAL opeartion. Please try again\n"); // 用户执行非授权操作，为非法操作
             }
             else {
-               audit_activity();
+               audit_activity(sockfd, myuser);
             }
             break;
          }
@@ -225,7 +233,7 @@ void mainPage(user myuser) {
                printf("ILLEGAL opeartion. Please try again\n"); // 用户执行非授权操作，为非法操作
             }
             else {
-               update_permission();
+               update_permission(sockfd, myuser);
             }
             break;
          }
@@ -255,41 +263,34 @@ sign_msg* sign_in() {   //登陆交互界面，待完善。
    sign_msg login;
    initSign_msg(login);
    login.account = account;
-   strcmp(login.passwd, passwd);
+   strcpy(login.passwd, passwd);
 
    return &login;
 }
 
-sign_msg* sign_up() {   //登陆交互界面，待完善。
-   int account;
-   char *phone = "0";
-   char *passwd = "0";
-   char *temp = "0";
-   char ch = '0';
+user sign_up(user theuser) {   //登陆交互界面，待完善。
+   initUser(theuser);
    while(1) {
       printf("Please type your phone number: ");
-      scanf("%s", &phone);
+      scanf("%s", &theuser.phone);
       ch = getchar();
       printf("Please type your name/account that would be used for login: ");
-      scanf("%d", &account);
+      scanf("%d", &theuser.name);
+      printf("Please type your id that would be used for login: ");
+      scanf("%d", &theuser.id);
       printf("Please type your password: ");
       scanf("%s", &temp);
       ch = getchar();
       printf("Please type your password again: ");
-      scanf("%s", &passwd);
+      scanf("%s", &theuser.passwd);
       ch = getchar();
       if (strcmp(passwd, temp)  != 0) {
          printf("Two inputs of password doesn't fit. Please try again\n\n");
          continue;
       }
    }
-   
-   sign_msg login;
-   initSign_msg(login);
-   login.account = account;
-   strcmp(login.passwd, passwd);
 
-   return &login;
+   return theuser;
 }
 
 void search_activity(int sockfd, user myuser, int type){
@@ -590,12 +591,11 @@ void audit_activity(int sockfd, user myuser) {
       write(sockfd, &idea, sizeof(idea));
    }
 
-   int num = 0;
    int choice = 0;
    int idea;
    int audit;
    int *audit_id;
-   num = show_audit_activity(audit_id);
+
    printf("Choose the activity you want to audit: \n");
    scanf("%d", &choice);
    audit = audit_id[choice - 1];
