@@ -1,9 +1,9 @@
 // myser.c
 
-#include "functions.h"
+#include "function.h"
 
-#define PORT 6027	 // 端口号
-#define MAXSIZE 1024 // 缓冲区大小
+#define PORT 7812	 // 端口号
+#define MAXSIZE 10240 // 缓冲区大小
 
 int running = 1;
 
@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
 	int server_len, client_len; // 服务器和客户消息长度
 	int nbytes, portnumber;
 	int num;
+	int flagt = 0;
 	char name[10];
 	char buf[MAXSIZE];
 	char rebuf[MAXSIZE];
@@ -250,10 +251,12 @@ int main(int argc, char *argv[])
 				while (1)
 				{
 					memset(rebuf, 0x00, sizeof(rebuf));
-					read(new_fd, rebuf, sizeof(rebuf));
-					printf("gogo\n");
-					printf("%c\n", rebuf[0]);
-					
+					while(1) {
+						if (recv(new_fd, rebuf, sizeof(rebuf), 0) > 0) {
+							break;
+						}
+					}
+					printf("%s\n", rebuf);
 					if (rebuf[0] == '1')
 					{
 						write(new_fd, "加载成功", MAXSIZE);
@@ -291,49 +294,35 @@ int main(int argc, char *argv[])
 						recv(new_fd, (char*)&tmp_b.auditior, sizeof(tmp_b.auditior), 0);
 						recv(new_fd, (char*)&tmp_b.id, sizeof(tmp_b.id), 0);
 						recv(new_fd, (char*)&tmp_b.checkin, sizeof(tmp_b.checkin), 0);
-						
-						printf("懂你意思hh！\n");
-						
-						if (1)
-						{
-							printf("懂你意思！\n");
-							actinsert(tmp_b);
-							write(new_fd, "添加成功!", MAXSIZE);
-						}
-						else
-						{
-							write(new_fd, "该活动已经存在!", MAXSIZE);
-						}
+					
+						actinsert(tmp_b);
+						write(new_fd, "添加成功!", MAXSIZE);
+
 					}
 					else if(rebuf[0]=='3')
 					{
 						write(new_fd, "请输入要删除的活动:", MAXSIZE);
 						int id;
 						read(new_fd, (char*)&id, MAXSIZE);
-						int i = search(pathname, id);
-						if (i < 0)
-						{
-							write(new_fd, "该活动不存在!", MAXSIZE);
-						}
-						else
-						{
-							actremove(pathname, id);
-							write(new_fd, "删除活动陈坤!", MAXSIZE);
-						}
+						actremove(id);
+						
+						close(new_fd);
+						flagt = 1;
+						break;
 					}
 					else if(rebuf[0]=='4')
 					{
 						write(new_fd, "请输入要审核的活动：", MAXSIZE);
 						int id;
 						read(new_fd, (char*)&id, MAXSIZE);
-						int i = search(pathname, id);
-						if (i < 0)
+						int i = search( id);
+						if (i == -1)
 						{
 							write(new_fd, "该活动不存在!", MAXSIZE);
 						}
 						else
 						{
-							if (actupdate(pathname, ur.id, i))
+							if (actupdate(ur.id, i))
 							{
 								write(new_fd, "审核成功!", MAXSIZE);
 							}
@@ -343,18 +332,20 @@ int main(int argc, char *argv[])
 							}
 						}
 					}
-					else if (rebuf[0] == '0')
+					else
 					{
 						break;
 					}
 				}
 			}
-			else if (rebuf[0] == '0')
+			else /*if (rebuf[0] == '0')*/
 			{
 				break;
 			}
 		}
-		close(new_fd);
+		if (flagt) {
+			close(new_fd);
+		}
 	}
 	fp = fopen("./cata.txt", "w+b"); // 写入活动信息
 	int i = 0;

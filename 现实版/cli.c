@@ -1,15 +1,15 @@
 // mycli.c
 
-#include "functions.h"
+#include "function.h"
 
-#define PORT 6027    // 端口号
-#define MAXSIZE 1024 // 缓冲区大小
+#define PORT 7812    // 端口号
+#define MAXSIZE 10240 // 缓冲区大小
 
 
 
 int main(int argc, char *argv[])
 {
-    int actcountact = 0;
+    srand((unsigned int)time(NULL));
     int new_fd;
     char buf[MAXSIZE];
     char rebuf[MAXSIZE];
@@ -66,18 +66,18 @@ int main(int argc, char *argv[])
     read(new_fd, me.name, sizeof(me.name));
     if (me.status)
     {
-        printf("管理员%s您好，欢迎您使用报账系统!\n", me.name);
+        printf("管理员%s您好，欢迎您使用志愿汇管理系统!\n", me.name);
     }
     else
     {
-        printf("用户%s您好，欢迎您使用报账系统!\n", me.name);
+        printf("用户%s您好，欢迎您使用志愿汇管理系统!\n", me.name);
     }
     while (1)
     {
-        printf("     *活动报账管理系统*\n");
+        printf("     *志愿汇管理系统*\n");
         printf("-------------------------\n");
         printf("     1.进入用户管理       \n");
-        printf("     2.进入报账系统       \n");
+        printf("     2.进入活动管理       \n");
         printf("     0.退出系统           \n");
         printf("-------------------------\n");
         printf("请输入：");
@@ -227,12 +227,12 @@ int main(int argc, char *argv[])
         {
             while (1)
             {
-                printf("      *报账管理平台*        \n");
+                printf("      *活动管理平台*        \n");
                 printf("---------------------------\n");
                 printf("     1.查询活动     \n");
                 printf("     2.添加活动           \n");
                 printf("     3.删除活动           \n");
-                printf("     4.修改活动            \n");
+                printf("     4.审核活动           \n");              
                 printf("     0.返回                \n");
                 printf("---------------------------\n");
                 printf("请输入：");
@@ -252,21 +252,22 @@ int main(int argc, char *argv[])
                     continue;
                 }
                 
-                write(new_fd, buf, sizeof(buf)); // 发送消息
+                send(new_fd, buf, sizeof(buf), 0); // 发送消息
                 if (buf[0] == '1')
                 {
                     read(new_fd, rebuf, sizeof(rebuf));   // 接收新消息
                     printf("收到服务器消息:%s\n", rebuf); // 输出到终端
-                        printf("----------------账 目 列 表----------------\n");
+                        printf("----------------活 动 列 表----------------\n");
                         read(new_fd, rebuf, sizeof(struct act)); // 接收新消息
                         while (strcmp(rebuf, "end") != 0)
                         {
                             struct act *tmp = (struct act *)&rebuf;
                             printf("活动名称:%s\n",tmp->name);
+                            printf("活动ID:%d\n",tmp->id);
                             printf("活动地点:%s\n",tmp->location);
                             printf("活动开始时间:%ld\n",tmp->btime);
                             printf("活动结束时间:%ld\n",tmp->etime);
-                            printf("活动备注：%s\n",tmp->comment);
+                            printf("活动备注：%s\n",tmp->comment);      
                             if(tmp->auditing==0)
                             {printf("活动审核情况:审核中\n");}
                             if(tmp->auditing==1) {
@@ -313,14 +314,10 @@ int main(int argc, char *argv[])
                     send(new_fd, (char*)&tmp_b.applicant, sizeof(tmp_b.applicant), 0);
                     tmp_b.auditior = -1;
                     send(new_fd, (char*)&tmp_b.auditior, sizeof(tmp_b.auditior), 0);
-                    tmp_b.id = ++actcountact;
+                    tmp_b.id = rand() % 10001 + 5;
                     send(new_fd, (char*)&tmp_b.id, sizeof(tmp_b.id), 0);
                     tmp_b.checkin = -1;
                     send(new_fd, (char*)&tmp_b.checkin, sizeof(tmp_b.checkin), 0);
-
-                
-                    printf("xxx%s\n", tmp_b.location);
-
                     read(new_fd, rebuf, MAXSIZE);         // 接收新消息
                     
                     printf("收到服务器消息:%s\n", rebuf); // 输出到终端
@@ -331,13 +328,16 @@ int main(int argc, char *argv[])
                 {
                     read(new_fd, rebuf, sizeof(rebuf)); // 接收新消息
                     printf("%s", rebuf);
+                    
                     int id; // 输出到终端
                     scanf("%d", &id);
+                    sleep(5);
                     write(new_fd, (char*)&id, MAXSIZE);
-                    read(new_fd, rebuf, sizeof(rebuf));   // 接收新消息
-                    printf("收到服务器消息:%s\n", rebuf); // 输出到终端
-                    printf("输入任意键继续...\n");
-                    scanf("%s", buf);
+                    printf("操作已执行！\n"); // 输出到终端
+                    sleep(2);
+                    printf("出于活动管理安全性考虑，每次登录只能删除一个活动，请重新登录！\n");
+                    close(new_fd);
+                    return 0;
                 }
                 else if(buf[0]=='4')
                 {
@@ -361,7 +361,9 @@ int main(int argc, char *argv[])
                 }
             }
         }
-
+        else {
+            break;
+        }
     }
     printf("结束通信\n");
     close(new_fd);
